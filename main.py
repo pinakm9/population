@@ -1,3 +1,5 @@
+
+
 # Creates a set of population groups
 def get_groups():
 	names = []
@@ -32,26 +34,60 @@ def get_column(c):
 			col.append(int(line[c]))
 	return col
 
-def set_chr_range():
-	d, column = {}, []
+# Finds stop-point to avoid chromosome 23 
+def filter23():
+	col = []
 	with open('./../data/assignment/india_2009_2013.snp') as file:
-		for line in file:
-			column.append(int(line.split()[1]))
-	for i in range(1,24):
-		d[i] = []
-		d[i].append(column.index(i))
-	for i in range(1,23):
-		d[i].append(d[i+1][0]-1)
-	return d
+		for i, line in enumerate(file):
+			if line.split()[1] == '23':
+				break
+	return i
 
-# Gets chromosome number for an individual
-def get_chrom():
-	pass
+stop23 = filter23()
 
-# Computes $\sum_{i}X_i$ and $n_1$ for a group for each locus
-def estimate(group):
-	d = {'X': [], }
-	with open('./../data/assignment/india_2009_2013.geno') as file:
-		cols = list(map(get_column, locations[group]))
+class Group:
 
-print set_chr_range()
+	def __init__(self, name):
+		self.name = name
+		self.p, self.n = self.estimate()   
+
+	# Computes $\sum_{i}X_i$ and $n_1$ for a group for each locus
+	def estimate(self):
+		d = {}
+		with open('./../data/assignment/india_2009_2013.geno') as file:
+			cols = list(map(get_column, locations[self.name]))
+		n = len(cols)
+		for i in range(stop23):
+			d[i] = sum([cols[k][i] for k in range(n)])/float(n)
+		return d, n
+
+# Variance across
+def Nl(g1, g2, l):
+	x1, x2 = g1.p[l], g2.p[l]
+	n1, n2 = g1.n, g2.n
+	print(x1, x2, n1, n2) 
+	return (x1-x2)**2 #- x1*(1-x1)/(n1-1) - x2*(1-x2)/(n2-1)
+
+# Total variance
+def Dl(g1, g2, l):	
+	x1, x2 = g1.p[l], g2.p[l] 
+	return (x1-x2)**2 + x1*(1-x1) + x2*(1-x2)
+
+# Fixation index
+def fixation(g1, g2):
+	N, D = 0.0, 0.0
+	for l in range(stop23):
+		N += Nl(g1, g2, l)
+		D += Dl(g1, g2, l)
+	return N/D
+
+Groups = []
+for g in groups:
+	Groups.append(Group(g))
+
+for i, g1 in enumerate(Groups):
+	for j, g2 in enumerate(Groups):
+		if i > j:
+			print('{}\t{}\t{}'.format(g1.name, g2.name, fixation(g1, g2)))
+
+
